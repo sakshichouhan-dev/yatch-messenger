@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yatch | Sign in</title>
+ <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="login-shell">
+    <section class="welcome">
+      <div class="brand"><b>Yatch</b></div>
+      <h1>Welcome<br>back.</h1>
+      <p>Sign in to continue your journey and make every moment count.</p>
+    </section>
+    <section class="login-panel">
+      <h2>Sign in</h2>
+      <p class="subtitle">Enter your details to access your account.</p>
+      <div id="alert-box" style="display:none; background-color: #dcfce7; color:#15803d; border:1pxsolid #86efac; padding:10px; border-radius:6px; font-size:0.88rem; text-align: center;margin-bottom: 16px;">
+        Account created successfully! Please sign in.
+        </div>
+      <form method="POST" action="/login">
+        <div><label for="email">Email address</label><input type="email" id="email" name="email" placeholder="you@example.com" required></div>
+        <div><label for="password">Password</label><input type="password" id="password" name="password" placeholder="Enter your password" required></div>
+        <div class="options"><label class="remember"><input type="checkbox"> Remember me</label><a href="/forgot-password">Forgot password?</a></div>
+        <button type="submit">Sign in</button>
+      </form>
+      <p class="signup">New around here? <a href="/new-account">Create an account</a></p>
+    </section>
+  </main>
+
+<script>
+  const param = new URLSearchParams(window.location.search);
+  if (params.get("registered") === "true"){
+    document.getElementById("alert-box").style.display = "block";
+  }
+</script>
+</body>
+</html>
