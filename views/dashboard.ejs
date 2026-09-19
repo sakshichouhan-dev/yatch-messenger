@@ -1,58 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Yutch Messenger</title>
-  <link rel="stylesheet" href="/style.css?v=2">
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body class="dashboard-wrapper" data-user-email="<%= email %>">
 
   <div class="messenger-app">
-    <!-- Sidebar -->
-    <aside class="chat-sidebar ">
-      <div class="chat-sidebar-header">
-        <div class="chat-brand">
-          <svg width="26" height="26" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="36" height="36" rx="8" fill="#0284c7"/>
-            <path d="M11 11L18 19L25 11" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M18 19V25" stroke="white" stroke-width="3" stroke-linecap="round"/>
-            <circle cx="25" cy="11" r="2.5" fill="#38bdf8"/>
-          </svg>
-          <span>Yutch</span>
+    <!-- 1. Left Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="app-brand">
+          <span class="brand-logo">Y</span>
+          <span class="brand-name">Yutch</span>
         </div>
-      </div>
 
-      <div class="current-user-card">
-        <div class="user-avatar"><%= email.charAt(0) %></div>
-        <div class="user-info">
-          <div class="user-email-text"><%= email %></div>
-          <div class="user-online-badge"><span class="pulse-dot"></span> Active Now</div>
+        <div class="user-badge">
+          <div class="user-avatar"><%= email.charAt(0).toUpperCase() %></div>
+          <div class="user-details">
+            <span class="user-email"><%= email %></span>
+            <span class="status-indicator">● Active Now</span>
+          </div>
         </div>
-      </div>
 
-      <div class="chat-list">
-        <div class="chat-list-title">Channels</div>
-        <div class="chat-room-item">
-          <div class="user-avatar" style="background: #475569;">#</div>
-          <div>
-            <h4>Global Chat</h4>
-            <p>Main public room</p>
+        <div class="channels-section">
+          <span class="channels-title">CHANNELS</span>
+          <div class="channel-item active">
+            <span class="channel-hash">#</span>
+            <div class="channel-info">
+              <span class="channel-title">Global Chat</span>
+              <span class="channel-desc">Main public room</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="chat-sidebar-footer">
-        <a href="/logout" class="logout-link">Sign Out</a>
+      <div class="sidebar-bottom">
+        <a href="/logout" class="sign-out-link">Sign Out</a>
       </div>
     </aside>
 
-    <!-- Chat Area -->
-    <main class="chat-window ">
+    <!-- 2. Main Chat Area -->
+    <main class="chat-window">
+      <!-- Chat Header -->
       <header class="chat-window-header">
-        <h3># Global Chat</h3>
+        <h2># Global Chat</h2>
       </header>
 
+      <!-- Message Bubbles Container (Single Container Only) -->
       <section class="chat-message-stream" id="chatStream">
         <div class="msg-row received">
           <span class="msg-sender">System</span>
@@ -60,16 +57,27 @@
         </div>
       </section>
 
+      <!-- Typing Indicator -->
+      <div id="typingNotice" class="typing-indicator" style="display: none;">
+        <span id="typingUser">Someone</span> is typing...
+      </div>
+
+      <!-- Footer Form -->
       <footer class="chat-window-footer">
-        <form class="message-composer" id="chatForm">
-          <input type="text" id="chatInput" placeholder="Type a message..." autocomplete="off" required>
-          <button type="submit">Send</button>
+        <form id="chatForm" class="message-input-form">
+          <input 
+            type="text" 
+            id="chatInput" 
+            placeholder="Type a message..." 
+            autocomplete="off" 
+            required 
+          />
+          <button type="submit" class="send-btn">Send</button>
         </form>
       </footer>
     </main>
   </div>
 
-  <!-- Socket.IO library & Frontend logic -->
   <script src="/socket.io/socket.io.js"></script>
   <script src="/script.js"></script>
 </body>

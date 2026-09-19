@@ -4,7 +4,8 @@
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "method-override": "^3.0.0",
-    "mongoose": "^9.10.1"
+    "mongoose": "^9.10.1",
+    "socket.io": "^4.8.3"
   },
   "name": "main",
   "version": "1.0.0",

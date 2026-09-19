@@ -1,30 +1,35 @@
 const express = require("express");
-const app = express();
 const mongoose = require("mongoose");
-const User = require("./models/user");
 const path = require("path");
 const methodOverride = require("method-override");
-const user = require("./models/user");
 const session = require("express-session");
+const http = require("http");
+const { Server } = require("socket.io");
 
+const User = require("./models/user");
+const Message = require("./models/message");
 
-main()
-.then( () => {
- console.log("connected sucessfilly");
-})
-.catch((err) =>{
-  console.log(err);
-});
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+const PORT = process.env.PORT || 3000;
 
-async function main(){
-  await mongoose.connect('mongodb://127.0.0.1:27017/yutch');
+// --- DATABASE CONNECTION ---
+async function main() {
+  await mongoose.connect("mongodb://127.0.0.1:27017/yutch");
 }
+main()
+  .then(() => console.log("connected successfully"))
+  .catch((err) => console.log(err));
 
+// --- MIDDLEWARE & CONFIGURATION ---
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
+
 app.use(express.static(path.join(__dirname, "public")));
-app.use(express.urlencoded({extended : true}) );
+app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride("_method"));
+
 app.use(
   session({
     secret: "super-secret-key-change-this",
@@ -34,15 +39,8 @@ app.use(
   })
 );
 
-app.get("/", (req,res) =>{
-  res.sendFile(path.join(__dirname, ' index.html '));
-});
-
-
-
-// --- SIGN UP / CREATE ACCOUNT ---
-
-app.get("/new-account", (req, res) =>{
+// --- 1. AUTHENTICATION & SIGN UP ---
+app.get("/new-account", (req, res) => {
   res.render("newacc");
 });
 
@@ -54,6 +52,7 @@ app.post("/new-account", async (req, res) => {
   }
 
   email = email.trim().toLowerCase();
+  password = password.trim();
 
   try {
     const existingUser = await User.findOne({ email });
@@ -64,25 +63,23 @@ app.post("/new-account", async (req, res) => {
       `);
     }
 
-    const newUser = new User({ email, password: password.trim() });
+    const newUser = new User({ email, password });
     await newUser.save();
 
-    res.redirect("/?registered=true");
+    res.redirect("/");
   } catch (err) {
     console.error("Signup error:", err);
     res.status(500).send("Error creating account.");
   }
 });
 
-
-
-
-// --- SIGN IN / LOGIN ---
-
+// --- 2. SIGN IN / LOGIN ---
+app.get("/", (req, res) => {
+  res.render("index");
+});
 
 app.post("/login", async (req, res) => {
-  console.log("Raw body recieved:", req.body);
-let { email, password } = req.body;
+  let { email, password } = req.body;
 
   if (!email || !password) {
     return res.send("Please enter both email and password.");
@@ -109,17 +106,8 @@ let { email, password } = req.body;
       `);
     }
 
-    // res.send(`
-    //   <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
-    //     <h1>Welcome, ${foundUser.email}!</h1>
-    //     <p>You are successfully signed in.</p>
-    //     <a href="/">Logout</a>
-    //   </div>
-    // `);
     req.session.userId = foundUser._id;
     req.session.userEmail = foundUser.email;
-
-
     res.redirect("/dashboard");
   } catch (err) {
     console.error("Login error:", err);
@@ -127,73 +115,110 @@ let { email, password } = req.body;
   }
 });
 
+// --- 3. FORGOT / RESET PASSWORD ---
+app.get("/forgot-password", (req, res) => {
+  res.render("forgetpassword");
+});
 
-// 1. Protected Dashboard Route
-app.get("/dashboard", (req, res) => {
-  // If no user is logged in, redirect them back to the login screen
-  if (!req.session.userId) {
-    return res.redirect("/");
+app.post("/forgot-password", async (req, res) => {
+  let { email, newPassword } = req.body;
+
+  if (!email || !newPassword) {
+    return res.send("Please enter both email and new password.");
   }
 
-  // Render the dashboard with their email
+  email = email.trim().toLowerCase();
+  newPassword = newPassword.trim();
+
+  try {
+    const foundUser = await User.findOne({ email });
+
+    if (!foundUser) {
+      return res.send(`
+        <h3>User not found!</h3>
+        <p>No user registered under <strong>${email}</strong>.</p>
+        <a href="/new-account">Create Account</a> | <a href="/forgot-password">Try Again</a>
+      `);
+    }
+
+    foundUser.password = newPassword;
+    await foundUser.save();
+
+    console.log(`Password reset successfully for: ${email}`);
+    res.redirect("/");
+  } catch (err) {
+    console.error("Forgot password error:", err);
+    res.status(500).send("Error updating password.");
+  }
+});
+
+// --- 4. PROTECTED DASHBOARD ROUTE ---
+app.get("/dashboard", (req, res) => {
+  if (!req.session.userEmail) {
+    return res.redirect("/");
+  }
   res.render("dashboard", { email: req.session.userEmail });
 });
 
-// 2. Logout Route
+// --- 5. LOGOUT ROUTE ---
 app.get("/logout", (req, res) => {
   req.session.destroy((err) => {
     if (err) {
-      console.error(err);
       return res.send("Error logging out.");
     }
-    // Clear cookie and redirect to login
-    res.clearCookie("connect.sid");
     res.redirect("/");
   });
 });
 
+// --- 6. REAL-TIME SOCKET.IO & PERSISTENCE ---
+io.on("connection", async (socket) => {
+  console.log("User connected:", socket.id);
 
-//forgot password
-app.get("/forgot-password", (req,res) =>{
-  res.render("forgetpassword", {message: null});
-});
+  // Send the last 50 messages to the user who just connected
+  try {
+    const previousMessages = await Message.find().sort({ createdAt: 1 }).limit(50);
+    socket.emit("loadHistory", previousMessages);
+  } catch (err) {
+    console.error("Error loading chat history:", err);
+  }
 
-app.post("/forgot-password", async (req, res) =>{
-    const { email } = req.body;
+  // Handle incoming chat messages
+  socket.on("chatMessage", async (data) => {
+    const formattedTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    
+    const messageData = {
+      user: data.user,
+      text: data.text,
+      time: formattedTime
+    };
 
-    try{
-      const User = await user.findOne({email});
-
-      if (!user) {
-      return res.render("forgetpassword", { 
-        message: "No account found with this email address." 
-      });
+    // 1. Save to MongoDB
+    try {
+      const newMessage = new Message(messageData);
+      await newMessage.save();
+    } catch (err) {
+      console.error("Error saving message:", err);
     }
 
-    res.render("forgetpassword", { 
-      message: `A reset link has been simulated for ${email}. Check your inbox!` 
-    });
+    // 2. Broadcast to everyone
+    io.emit("message", messageData);
+  });
 
-  } catch (err) {
-    console.error(err);
-    res.render("forgetpassword", { 
-      message: "An error occurred. Please try again." 
-    });
-  }
-});
-  
+  // Handle typing events
+  socket.on("typing", (username) => {
+    socket.broadcast.emit("userTyping", username);
+  });
 
+  socket.on("stopTyping", () => {
+    socket.broadcast.emit("userStopTyping");
+  });
 
-
-app.get("/clean-db", async (req, res) => {
-  try {
-    await User.deleteMany({});
-    res.send("Database wiped clean! You can now create a fresh account.");
-  } catch (err) {
-    res.status(500).send("Failed to clear database: " + err.message);
-  }
+  socket.on("disconnect", () => {
+    console.log("User disconnected");
+  });
 });
 
-app.listen(3000, () =>{
-  console.log("server is running");
+// --- 7. SERVER LISTEN ---
+server.listen(PORT, () => {
+  console.log(`server is running on http://localhost:${PORT}`);
 });
